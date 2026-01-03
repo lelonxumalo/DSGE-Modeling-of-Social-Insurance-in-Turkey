@@ -89,8 +89,8 @@ python 4_turkey_tank_vat_experiment.py
 
 1. Clone this repository:
 ```bash
-git clone <repository-url>
-cd "DSGE Modeling of Social Insurance in Turkey"
+git clone https://github.com/lelonxumalo/DSGE-Modeling-of-Social-Insurance-in-Turkey.git
+cd DSGE-Modeling-of-Social-Insurance-in-Turkey
 ```
 
 2. Install Python dependencies:
