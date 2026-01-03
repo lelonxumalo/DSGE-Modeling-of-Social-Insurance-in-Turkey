@@ -162,16 +162,12 @@ All visualizations are saved in the `results/` folder:
 If you use this model in your research, please cite:
 
 ```
-[Add your citation information here]
+Nxumalo, Mpumelelo. 2025. Fiscal Limits of Social Protection in Turkey: A General Equilibrium Analysis. https://lelonxumalo.blogspot.com/2026/01/fiscal-limits-of-social-protection-in.html
 ```
 
 ## License
 
-[Add your license here - e.g., MIT, GPL, etc.]
-
-## Contact
-
-[Add your contact information]
+MIT
 
 ## Acknowledgments
 
