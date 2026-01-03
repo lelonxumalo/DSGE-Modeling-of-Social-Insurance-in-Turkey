@@ -1,6 +1,6 @@
 # DSGE Modeling of Social Insurance in Turkey
 
-A Dynamic Stochastic General Equilibrium (DSGE) model analyzing social protection policies in Turkey using a Two-Agent New Keynesian (TANK) framework with dual labor markets (formal and informal sectors).
+A Dynamic Stochastic General Equilibrium (DSGE) model analyzing social protection policies in Turkey using a Two-Agent New Keynesian (TANK) framework with dual labor markets (formal and informal sectors). See writeup on my [blog](https://lelonxumalo.blogspot.com/2026/01/fiscal-limits-of-social-protection-in.html)
 
 ## Overview
 
