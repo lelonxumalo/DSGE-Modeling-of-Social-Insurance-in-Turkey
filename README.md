@@ -82,8 +82,10 @@ python 4_turkey_tank_vat_experiment.py
 ## Installation
 
 ### Requirements
-- Python 3.8+
-- GAMS (for GAMSPy backend)
+- Python 3.9+ (developed on 3.13)
+
+No solver licence is needed. The model was previously written in GAMSPy and
+required a GAMS backend; it is now a plain `scipy.optimize.root` solve.
 
 ### Setup
 
@@ -98,10 +100,10 @@ cd DSGE-Modeling-of-Social-Insurance-in-Turkey
 pip install -r requirements.txt
 ```
 
-3. Install GAMS:
-   - Download from [GAMS website](https://www.gams.com/download/)
-   - Follow platform-specific installation instructions
-   - Ensure GAMS is in your system PATH
+3. Verify the install:
+```bash
+python -m pytest test_model.py -q
+```
 
 ## Model Structure
 
@@ -133,7 +135,49 @@ pip install -r requirements.txt
 | `p_sep_rate` | 0.07 | Formal job separation rate (high turnover) |
 | `p_match_eff` | 0.35 | Matching efficiency (structural unemployment) |
 | `p_informal_prod` | 1.2 | Informal sector productivity |
-| `p_ben_level` | 0.3 | Unemployment benefit replacement rate |
+| `p_ben_level` | 0.3 | Unemployment benefit **level** (not a rate). The implied replacement rate is `p_ben_level / w_f` &asymp; 11% |
+
+## Model code
+
+The equations live in `turkey_tank/model.py` and are shared by all four
+experiment scripts. Sweep and budget-closure helpers are in
+`turkey_tank/experiments.py`. Each script writes both a PNG and a CSV so the
+numbers behind published tables can be regenerated.
+
+Two accounting bugs were fixed after the write-up was published:
+
+1. `firm_profit` did not net out the capital rental bill, so savers were paid
+   `r*k` twice (about a third of GDP).
+2. The government paid `p_ben_level * u` in benefits while only spenders
+   received transfers, so half of every benefit lira vanished.
+
+Together these broke the aggregate resource constraint. `Solution.check()` now
+asserts `C + I == Y - vacancy costs` after every solve. Pass
+`Params(legacy_accounting=True)` to reproduce the pre-fix published numbers;
+`test_model.py` pins both sets.
+
+## Modelling caveats
+
+Read these before quoting results.
+
+- **The labour block is recursive.** The eleven equations determining
+  `y_f, k, r, l_f, u, v, theta, w_f, w_i, p_find, p_fill` contain no
+  consumption variable and no `tau_c`, so **VAT cannot move unemployment in
+  this model**. A "VAT preserves jobs" comparison is really a comparison of
+  labour tax rates. Making VAT distortionary requires exempting informal
+  consumption, which is not yet implemented.
+- **`u` is not a headline unemployment rate.** `l_f + u == 1` normalises the
+  *formal* labour force; informal workers sit outside that identity. Solutions
+  report both `unemployment_formal` and a TurkStat-comparable
+  `unemployment_total`.
+- **Informal work is a second job, not an exit.** Informal labour is supplied
+  by formally-employed spenders and never feeds back into `u`, so the model
+  does not contain a "workers exit the formal sector" margin.
+- **The outside option double-counts.** `w_i + p_ben_level` gives a separated
+  worker the informal wage *and* the benefit simultaneously, which amplifies
+  the disemployment effect of benefits.
+- **Calibration is not target-matched.** Parameters were set by hand, not
+  solved to hit Turkish moments.
 
 ## Results
 

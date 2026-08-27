@@ -1,242 +1,151 @@
 """
 VAT Financing Experiment (Consumption Tax)
-==================================================
-This script tests if financing social protection via VAT (Consumption Tax)
-is less damaging to the Turkish labor market than Labor Taxes.
+==========================================
 
-Hypothesis: 
-VAT is broader and less distortive to the 'hiring decision', so it should
-avoid the 'Death Spiral' we saw with Labor Taxes.
+Tests whether financing social protection via VAT is less damaging to the
+Turkish labour market than a labour tax.
+
+READ THIS BEFORE INTERPRETING THE OUTPUT
+----------------------------------------
+In this model VAT *cannot* affect employment, by construction.  The eleven
+equations that pin down (y_f, k, r, l_f, u, v, theta, w_f, w_i, p_find,
+p_fill) contain neither ``tau_c`` nor any consumption variable, so the labour
+block is recursive and unemployment is invariant to the VAT rate.  The script
+asserts this explicitly below.
+
+So the "VAT preserves jobs" comparison is really "tau_w = 0.35 versus
+tau_w = 0.40", both at the higher benefit level -- any instrument other than
+the labour tax would give the identical unemployment rate.  Worse, because
+both the spender budget and the labour-supply condition involve only the gross
+expenditure c*(1+tau_c), under log utility income and substitution effects
+cancel exactly and ``tau_c`` is a pure rescaling of consumption: informal
+labour does not move either.
+
+To make this a real result, VAT has to be evaded in the informal sector --
+i.e. apply tau_c to formal consumption only, so raising it shifts demand
+toward informal output.  That is the channel that actually limits VAT in a
+dual economy, and it is not yet in the model.
+
+Output: results/turkey_vat_experiment.png
+        results/vat_experiment.csv
 """
 
-import gamspy
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import os
 
+import matplotlib.pyplot as plt
+
+from turkey_tank import Params, solve, write_csv
+from turkey_tank.experiments import find_balancing_rate
+
+VAT_BASE = 0.18
+
+
 def main():
-    # --- 1. MODEL DEFINITION (With VAT Parameter) ---
-    m = gamspy.Container()
-    s_hh = gamspy.Set(m, "s_hh", records=["savers", "spenders"])
-
-    # Parameters
-    beta = gamspy.Parameter(m, "beta", records=0.985)
-    alpha = gamspy.Parameter(m, "alpha", records=0.40)
-    delta = gamspy.Parameter(m, "delta", records=0.025)
-    p_informal_prod = gamspy.Parameter(m, "p_informal_prod", records=1.2)
-    phi = gamspy.Parameter(m, "phi", records=1.0)
-    p_sep_rate = gamspy.Parameter(m, "p_sep_rate", records=0.07)
-    p_match_eff = gamspy.Parameter(m, "p_match_eff", records=0.35)
-    p_vac_cost = gamspy.Parameter(m, "p_vac_cost", records=0.35)
-    p_bargain = gamspy.Parameter(m, "p_bargain", records=0.5)
-    p_match_elast = gamspy.Parameter(m, "p_match_elast", records=0.5)
-    
-    # Fiscal Params
-    tau_w = gamspy.Parameter(m, "tau_w", records=0.35)
-    p_ben_level = gamspy.Parameter(m, "p_ben_level", records=0.3)
-    
-    # [NEW] VAT Parameter (Base rate ~18%)
-    tau_c = gamspy.Parameter(m, "tau_c", records=0.18)
-    
-    pop_data = pd.DataFrame([["savers", 0.5], ["spenders", 0.5]], columns=["s_hh", "value"])
-    p_pop_share = gamspy.Parameter(m, "p_pop_share", domain=[s_hh], records=pop_data)
-
-    # Variables
-    y_f = gamspy.Variable(m, "y_f", type="positive")
-    y_i = gamspy.Variable(m, "y_i", type="positive")
-    y_tot = gamspy.Variable(m, "y_tot", type="positive")
-    k = gamspy.Variable(m, "k", type="positive")
-    i = gamspy.Variable(m, "i", type="positive")
-    r = gamspy.Variable(m, "r", type="positive")
-    l_f = gamspy.Variable(m, "l_f", type="positive")
-    l_i = gamspy.Variable(m, "l_i", type="positive")
-    u = gamspy.Variable(m, "u", type="positive")
-    v = gamspy.Variable(m, "v", type="positive")
-    theta = gamspy.Variable(m, "theta", type="positive")
-    w_f = gamspy.Variable(m, "w_f", type="positive")
-    w_i = gamspy.Variable(m, "w_i", type="positive")
-    p_find = gamspy.Variable(m, "p_find", type="positive")
-    p_fill = gamspy.Variable(m, "p_fill", type="positive")
-    c = gamspy.Variable(m, "c", domain=[s_hh], type="positive")
-    l_f_hh = gamspy.Variable(m, "l_f_hh", domain=[s_hh], type="positive")
-    l_i_hh = gamspy.Variable(m, "l_i_hh", domain=[s_hh], type="positive")
-    gov_rev = gamspy.Variable(m, "gov_rev", type="positive")
-    gov_exp = gamspy.Variable(m, "gov_exp", type="positive")
-    lump_tax = gamspy.Variable(m, "lump_tax", type="free")
-
-    # Equations
-    eq_yf = gamspy.Equation(m, "eq_yf", type="REGULAR"); eq_yf[...] = y_f == (k**alpha) * (l_f**(1-alpha))
-    eq_yi = gamspy.Equation(m, "eq_yi", type="REGULAR"); eq_yi[...] = y_i == p_informal_prod * l_i
-    eq_ytot = gamspy.Equation(m, "eq_ytot", type="REGULAR"); eq_ytot[...] = y_tot == y_f + y_i
-    eq_r = gamspy.Equation(m, "eq_r", type="REGULAR"); eq_r[...] = r == alpha * (y_f / k)
-    mpl_f = (1 - alpha) * (y_f / l_f)
-    eq_wi = gamspy.Equation(m, "eq_wi", type="REGULAR"); eq_wi[...] = w_i == p_informal_prod
-    eq_match = gamspy.Equation(m, "eq_match", type="REGULAR"); eq_match[...] = l_f * p_sep_rate == p_match_eff * (u**p_match_elast) * (v**(1-p_match_elast))
-    eq_theta = gamspy.Equation(m, "eq_theta", type="REGULAR"); eq_theta[...] = theta == v / u
-    eq_pfill = gamspy.Equation(m, "eq_pfill", type="REGULAR"); eq_pfill[...] = p_fill == p_match_eff * (theta**(-p_match_elast))
-    eq_pfind = gamspy.Equation(m, "eq_pfind", type="REGULAR"); eq_pfind[...] = p_find == p_match_eff * (theta**(1-p_match_elast))
-    eq_lf_ident = gamspy.Equation(m, "eq_lf_ident", type="REGULAR"); eq_lf_ident[...] = l_f + u == 1
-    eq_job_creat = gamspy.Equation(m, "eq_job_creat", type="REGULAR"); eq_job_creat[...] = (p_vac_cost / p_fill) == (mpl_f - w_f) / (1/beta - (1-p_sep_rate))
-
-    # Wage Bargaining (Tax Wedge on Labor Only)
-    outside_option = w_i + p_ben_level
-    eq_wage = gamspy.Equation(m, "eq_wage", type="REGULAR")
-    eq_wage[...] = w_f * (1 - tau_w * (1 - p_bargain)) == (1 - p_bargain)*outside_option + p_bargain*(mpl_f + theta*p_vac_cost)
-
-    eq_euler = gamspy.Equation(m, "eq_euler", type="REGULAR"); eq_euler[...] = 1 == beta * (1 + r - delta)
-    eq_k_accum = gamspy.Equation(m, "eq_k_accum", type="REGULAR"); eq_k_accum[...] = i == delta * k
-    eq_lf_hh = gamspy.Equation(m, "eq_lf_hh", domain=[s_hh], type="REGULAR"); eq_lf_hh[s_hh] = l_f_hh[s_hh] == l_f * p_pop_share[s_hh]
-    eq_li_savers = gamspy.Equation(m, "eq_li_savers", type="REGULAR"); eq_li_savers[...] = l_i_hh["savers"] == 0
-    
-    total_l_spenders = l_f_hh["spenders"] + l_i_hh["spenders"]
-    eq_li_agg = gamspy.Equation(m, "eq_li_agg", type="REGULAR"); eq_li_agg[...] = l_i == gamspy.Sum(s_hh, l_i_hh[s_hh])
-    
-    # [NEW] Updated Labor Supply for Spenders (VAT wedge)
-    # MRS = Real Wage. Real cost of consumption is (1+tau_c).
-    # w_i = C * (1+tau_c) * L^phi
-    eq_li_spenders = gamspy.Equation(m, "eq_li_spenders", type="REGULAR")
-    eq_li_spenders[...] = w_i == c["spenders"] * (1 + tau_c) * (total_l_spenders**phi)
-
-    # [NEW] Updated Spender Budget (Consumption Tax)
-    sp_formal_inc = (1 - tau_w) * w_f * l_f_hh["spenders"]
-    sp_informal_inc = w_i * l_i_hh["spenders"]
-    sp_transfers = p_ben_level * (u * p_pop_share["spenders"])
-    eq_budget_sp = gamspy.Equation(m, "eq_budget_sp", type="REGULAR")
-    eq_budget_sp[...] = c["spenders"] * (1 + tau_c) == sp_formal_inc + sp_informal_inc + sp_transfers
-
-    # [NEW] Updated Saver Budget (Consumption Tax)
-    firm_profit = y_f - (w_f * l_f) - (v * p_vac_cost)
-    sv_formal_inc = (1 - tau_w) * w_f * l_f_hh["savers"]
-    eq_budget_sv = gamspy.Equation(m, "eq_budget_sv", type="REGULAR")
-    eq_budget_sv[...] = c["savers"] * (1 + tau_c) == (r * k) + sv_formal_inc + firm_profit - i - lump_tax
-
-    # [NEW] Updated Gov Revenue (Includes VAT)
-    eq_gov_rev = gamspy.Equation(m, "eq_gov_rev", type="REGULAR")
-    eq_gov_rev[...] = gov_rev == (tau_w * w_f * l_f) + (tau_c * gamspy.Sum(s_hh, c[s_hh]))
-
-    eq_gov_exp = gamspy.Equation(m, "eq_gov_exp", type="REGULAR"); eq_gov_exp[...] = gov_exp == p_ben_level * u
-    eq_gov_bal = gamspy.Equation(m, "eq_gov_bal", type="REGULAR"); eq_gov_bal[...] = gov_rev + lump_tax == gov_exp
-
-    # Initialization
-    l_f.setRecords(0.85); u.setRecords(0.15); l_i.setRecords(0.20)
-    v.setRecords(0.15); theta.setRecords(1.0); p_find.setRecords(0.6); p_fill.setRecords(0.6)
-    k.setRecords(10.0); y_f.setRecords(2.0); r.setRecords(0.04)
-    w_f.setRecords(1.2); w_i.setRecords(0.65)
-    c.setRecords(pd.DataFrame([["savers", 1.5], ["spenders", 0.9]], columns=["s_hh", "level"]))
-    l_f_hh.setRecords(pd.DataFrame([["savers", 0.425], ["spenders", 0.425]], columns=["s_hh", "level"]))
-    l_i_hh.setRecords(pd.DataFrame([["savers", 0.0], ["spenders", 0.20]], columns=["s_hh", "level"]))
-    gov_rev.setRecords(0.3); gov_exp.setRecords(0.05); lump_tax.setRecords(0.0)
-
-    model = gamspy.Model(m, "vat_model", problem="CNS", equations=m.getEquations())
+    base_p = Params(tau_c=VAT_BASE)
 
     # =========================================================================
-    # 2. RUN BASELINE
+    # 1. BASELINE
     # =========================================================================
-    print("--- Running Baseline ---")
-    model.solve()
-    base_u = u.records['level'].item()
-    base_c_spd = c.records.loc[c.records['s_hh']=='spenders','level'].item()
-    base_lump = lump_tax.records['level'].item() # Target Surplus/Deficit
-    print(f"  Baseline U: {base_u:.2%}")
-    print(f"  Baseline Fiscal Balance: {base_lump:.4f}")
+    print("--- Baseline ---")
+    base = solve(base_p)
+    print(f"  U: {base['u']:.2%} | fiscal balance: {base['lump_tax']:+.4f}")
 
     # =========================================================================
-    # 3. RUN SCENARIO B: LABOR TAX (Previous Failure)
+    # 2. SCENARIO B: LABOUR TAX FINANCING
     # =========================================================================
-    print("\n--- Running Scenario B: Labor Tax Financing ---")
-    p_ben_level.setRecords(0.40) # Increase Benefits
-    
-    # We will just run one iteration to show it failing/high cost, 
-    # rather than the full loop which we know explodes.
-    # Let's try to set tau_w to 0.40 (The Peak) directly
-    tau_w.setRecords(0.40)
-    model.solve()
-    labor_u = u.records['level'].item()
-    labor_c_spd = c.records.loc[c.records['s_hh']=='spenders','level'].item()
-    labor_gap = lump_tax.records['level'].item() - base_lump
-    print(f"  Labor Tax (40%) U: {labor_u:.2%} (Gap: {labor_gap:.4f})")
+    print("\n--- Scenario B: Labour tax financing ---")
+    higher_benefits = base_p.at(p_ben_level=0.40)
+
+    # Held at the Laffer peak for comparability with the published figure.
+    labour = solve(higher_benefits.at(tau_w=0.40), guess=base)
+    labour_gap = labour["lump_tax"] - base["lump_tax"]
+    print(f"  At tau_w = 40%: U = {labour['u']:.2%}, residual gap "
+          f"{labour_gap:+.4f} (NOT budget-balanced)")
+
+    # Is there any labour tax rate that does balance it?
+    labour_search = find_balancing_rate(higher_benefits, "tau_w",
+                                        target=base["lump_tax"],
+                                        lo=0.35, hi=0.70)
+    print("  " + labour_search.describe())
 
     # =========================================================================
-    # 4. RUN SCENARIO C: VAT FINANCING (Loop to Find Equilibrium)
+    # 3. SCENARIO C: VAT FINANCING
     # =========================================================================
-    print("\n--- Running Scenario C: VAT Financing ---")
-    
-    # Reset Labor Tax to baseline
-    tau_w.setRecords(0.35)
-    
-    target_tolerance = 0.0001
-    learning_rate = 0.2
-    
-    print(f"{'ITER':<5} {'VAT RATE':<10} {'DEFICIT GAP':<15} {'UNEMP':<10}")
-    
-    for i in range(20):
-        model.solve()
-        
-        curr_lump = lump_tax.records['level'].item()
-        curr_tau_c = tau_c.records['value'].item()
-        curr_u = u.records['level'].item()
-        
-        # Gap = Current Lump - Baseline Lump
-        # If Gap > 0, we are running a deficit relative to baseline -> Need Higher VAT
-        gap = curr_lump - base_lump
-        
-        print(f"{i:<5} {curr_tau_c:.4f}     {gap:.6f}        {curr_u:.2%}")
-        
-        if abs(gap) < target_tolerance:
-            print("-> VAT Convergence Reached.")
-            break
-            
-        # Adjust VAT
-        new_tau_c = curr_tau_c + (learning_rate * gap)
-        tau_c.setRecords(new_tau_c)
+    print("\n--- Scenario C: VAT financing ---")
+    vat_search = find_balancing_rate(higher_benefits, "tau_c",
+                                     target=base["lump_tax"],
+                                     lo=VAT_BASE, hi=0.60)
+    print("  " + vat_search.describe())
+    if not vat_search.found:
+        raise SystemExit("VAT financing found no balancing rate -- inspect the scan.")
+    vat = vat_search.solution
+    print(f"  VAT {VAT_BASE:.1%} -> {vat_search.rate:.2%} "
+          f"({(vat_search.rate - VAT_BASE) * 100:+.2f}pp)")
 
-    vat_u = u.records['level'].item()
-    vat_c_spd = c.records.loc[c.records['s_hh']=='spenders','level'].item()
-    vat_final_rate = tau_c.records['value'].item()
+    # The recursion claim, checked rather than asserted.
+    unfunded = solve(higher_benefits, guess=base)   # same tau_w, VAT untouched
+    assert abs(unfunded["u"] - vat["u"]) < 1e-10, "VAT moved unemployment?"
+    assert abs(unfunded["l_i"] - vat["l_i"]) < 1e-10, "VAT moved informal labour?"
+    print(f"\n  [CHECK] Raising VAT by "
+          f"{(vat_search.rate - VAT_BASE) * 100:.2f}pp moved unemployment by "
+          f"{abs(unfunded['u'] - vat['u']):.2e} and informal labour by "
+          f"{abs(unfunded['l_i'] - vat['l_i']):.2e}.")
+    print("  The labour block is recursive: VAT is non-distortionary here by "
+          "construction, not by result. See the module docstring.")
 
     # =========================================================================
-    # 5. VISUALIZATION
+    # 4. OUTPUT
     # =========================================================================
-    def pchg(new, old): return ((new - old) / old) * 100
-    
-    scenarios = ['Baseline', 'Labor Tax\n(Failed)', 'VAT Tax\n(Success?)']
-    u_vals = [base_u*100, labor_u*100, vat_u*100]
-    welf_vals = [0, pchg(labor_c_spd, base_c_spd), pchg(vat_c_spd, base_c_spd)]
+    os.makedirs("results", exist_ok=True)
+    write_csv("results/vat_experiment.csv", [
+        {"scenario": "baseline", "balances_budget": True, **base.summary()},
+        {"scenario": "labour_tax_40pct", "balances_budget": False,
+         **labour.summary()},
+        {"scenario": "vat_financed", "balances_budget": True, **vat.summary()},
+    ])
+    print("\n[SUCCESS] Data saved to results/vat_experiment.csv")
 
-    if not os.path.exists("results"): os.makedirs("results")
-    
+    def pchg(new, old):
+        return ((new - old) / old) * 100
+
+    scenarios = ["Baseline",
+                 "Labour Tax 40%\n(not balanced)",
+                 f"VAT {vat_search.rate:.1%}\n(balanced)"]
+    u_vals = [base["u"] * 100, labour["u"] * 100, vat["u"] * 100]
+    welf_vals = [0, pchg(labour["c_spd"], base["c_spd"]),
+                 pchg(vat["c_spd"], base["c_spd"])]
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-    fig.suptitle('Labor Tax vs. VAT: Financing Social Protection in Turkey', fontsize=16)
+    fig.suptitle("Labour Tax vs. VAT: Financing Social Protection in Turkey",
+                 fontsize=16)
 
-    # Plot 1: Unemployment
-    bars1 = ax1.bar(scenarios, u_vals, color=['gray', '#8c0000', '#2ca02c'], alpha=0.8)
-    ax1.set_ylabel('Unemployment Rate (%)')
-    ax1.set_title('Impact on Jobs')
-    ax1.grid(axis='y', linestyle='--', alpha=0.5)
-    
+    bars1 = ax1.bar(scenarios, u_vals, color=["gray", "#8c0000", "#2ca02c"],
+                    alpha=0.8)
+    ax1.set_ylabel("Unemployment Rate (%)")
+    ax1.set_title("Impact on Jobs")
+    ax1.grid(axis="y", linestyle="--", alpha=0.5)
     for bar in bars1:
-        ax1.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
-                f'{bar.get_height():.2f}%', ha='center', va='bottom', weight='bold')
+        ax1.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                 f"{bar.get_height():.2f}%", ha="center", va="bottom",
+                 weight="bold")
 
-    # Plot 2: Welfare
-    bars2 = ax2.bar(scenarios, welf_vals, color=['gray', 'red', 'green'], alpha=0.8)
-    ax2.set_ylabel('% Change in Consumption (Poor)')
-    ax2.set_title('Impact on Poverty (Spenders)')
-    ax2.axhline(0, color='black', linewidth=0.8)
-    ax2.grid(axis='y', linestyle='--', alpha=0.5)
-
+    bars2 = ax2.bar(scenarios, welf_vals, color=["gray", "red", "green"],
+                    alpha=0.8)
+    ax2.set_ylabel("% Change in Consumption (Poor)")
+    ax2.set_title("Impact on Poverty (Spenders)")
+    ax2.axhline(0, color="black", linewidth=0.8)
+    ax2.grid(axis="y", linestyle="--", alpha=0.5)
     for bar in bars2:
         h = bar.get_height()
-        off = 0.05 if h >= 0 else -0.15
-        va = 'bottom' if h >= 0 else 'top'
-        ax2.text(bar.get_x() + bar.get_width()/2., h + off,
-                f'{h:+.2f}%', ha='center', va=va, weight='bold')
+        ax2.text(bar.get_x() + bar.get_width() / 2., h,
+                 f"{h:+.2f}%", ha="center",
+                 va="bottom" if h >= 0 else "top", weight="bold")
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig("results/turkey_vat_experiment.png", dpi=300)
-    print("\n[SUCCESS] Chart saved to results/turkey_vat_experiment.png")
+    print("[SUCCESS] Chart saved to results/turkey_vat_experiment.png")
     plt.show()
+
 
 if __name__ == "__main__":
     main()
