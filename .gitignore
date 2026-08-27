@@ -40,7 +40,7 @@ ENV/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# GAMS/GAMSPy
+# GAMS/GAMSPy (legacy - no longer used)
 *.lst
 *.log
 *.gdx
@@ -49,3 +49,13 @@ ENV/
 
 # Output (optional - uncomment if you want to regenerate results)
 # results/*.png
+
+# Write-up and its tooling -- drafted locally, published to Blogger.
+# The repository ships the model only; README figures are guarded by test_docs.py.
+blog/
+
+# Agent guidance, not part of the model
+CLAUDE.md
+
+# Standalone ESSN game-theory sketch, unconnected to either model
+5_game_theory.py
