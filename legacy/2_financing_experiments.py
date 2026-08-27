@@ -18,6 +18,12 @@ Output: results/turkey_tax_experiment.png
 """
 
 import os
+import sys
+from pathlib import Path
+
+# This script now lives one level down; make the model package importable when
+# it is run directly (python legacy/N_name.py) rather than as a module.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import matplotlib.pyplot as plt
 

@@ -49,13 +49,16 @@ market, and in particular the trade-offs between:
 | Solver | `least_squares(method="trf", x_scale="jac")` | `root(method="lm")` |
 | Use it for | everything | reproducing the original write-up only |
 
-**Start here** (v2):
+**Start here** (v2). Scripts are numbered in reading order:
 
 ```bash
-python calibrate_to_turkey.py      # calibration fit against Turkish data
-python financing_comparison.py     # payroll tax vs. VAT financing
-python laffer_curves.py            # both Laffer curves
+python 1_calibrate.py              # calibration fit against Turkish data
+python 2_financing_comparison.py   # payroll tax vs. VAT financing
+python 3_laffer_curves.py          # both Laffer curves
 ```
+
+The v1 scripts keep their original numbering under `legacy/`. See
+[Repository layout](#repository-layout) for how the pieces fit together.
 
 Every number this README quotes is recomputed from a fresh solve by
 `test_docs.py`, cell by cell against the headline table — which is how the
@@ -122,7 +125,7 @@ survives every robustness check in `test_dual.py`; the magnitudes do not.
 Five parameters are solved for **jointly with the model** — the target conditions
 are appended to the equation system rather than wrapped in an outer loop — so a
 single solve delivers both. Values below are the output of `calibrate()`; run
-`python calibrate_to_turkey.py` to regenerate them.
+`python 1_calibrate.py` to regenerate them.
 
 ### Solved to hit the targets
 
@@ -188,6 +191,47 @@ badly-scaled Jacobian and reports the stall as non-existence.
 
 Each script writes a CSV alongside its chart, so published tables can be
 regenerated rather than re-read from console output.
+
+## Repository layout
+
+```
+1_calibrate.py              solve the model and report the calibration fit
+2_financing_comparison.py   fund a benefit expansion three ways, compare
+3_laffer_curves.py          sweep each tax instrument on its own
+
+turkey_tank/dual.py         v2 model: equations, calibration, budget closure
+turkey_tank/model.py        v1 model, frozen
+turkey_tank/experiments.py  sweep and budget-closure helpers for v1
+
+legacy/1..4_*.py            v1 experiments, original numbering, not maintained
+results/                    every chart and CSV the scripts produce
+test_dual.py                v2: calibration, identities, mechanisms, robustness
+test_model.py               v1: legacy and corrected values, existence ceiling
+test_docs.py                recomputes every figure this README quotes
+```
+
+**The numbers are reading order, not a dependency chain.** Each script is
+self-contained: it calls `calibrate()` itself, solves from scratch, and writes
+its own outputs. Nothing reads another script's CSV, so they can be run in any
+order or individually. The model is deterministic, so every script recomputes
+the same calibrated parameters — running `1_calibrate.py` first is a convention
+for readers, not a precondition.
+
+The shape of a run is the same in all three:
+
+1. `calibrate()` solves the 27-equation system jointly with five target
+   conditions, returning the calibrated `Params` and the baseline `Solution`.
+2. The script varies one or two policy parameters — `rr`, `tau_w`, `tau_c` —
+   and re-solves, passing the previous solution as the starting guess so
+   continuation carries it through difficult regions.
+3. `Solution.check()` asserts market clearing after every solve, so a bad
+   equilibrium raises rather than propagating into a chart.
+4. Results go to `results/` as both a PNG and a CSV, and the console report is
+   part of the output.
+
+Budget-closing scenarios add a step: `balancing_rates()` scans for the tax rate
+that returns the fiscal residual to its baseline. It returns a *list*, because
+the payroll tax has two such rates, one either side of its Laffer peak.
 
 ## Modelling caveats (v2)
 
@@ -299,7 +343,7 @@ python -m pytest -q            # full suite: test_dual.py (v2) + test_model.py (
 Their `u` is a share of the *formal* labour force only, so it is not an
 unemployment rate comparable to data. Use v2 for anything current.
 
-### 1. `1_turkey_tank.py` — baseline model
+### `legacy/1_turkey_tank.py` — baseline model
 The core TANK-SM model. Formal sector with Nash bargaining and vacancy posting;
 informal sector as a "survival" option; 35% labour tax; policy experiment raising
 the benefit level 0.30 → 0.40.
@@ -309,7 +353,7 @@ informal labour +3.57%, fiscal cost +61%.
 
 **Output:** `results/turkey_policy_impact_dual_axis.png`, `results/baseline_experiment.csv`
 
-### 2. `2_financing_experiments.py` — fiscal closure comparison
+### `legacy/2_financing_experiments.py` — fiscal closure comparison
 Baseline vs. debt/lump-sum financing vs. labour-tax financing.
 
 **Result:** no labour tax rate funds the expansion. No equilibrium exists above
@@ -318,7 +362,7 @@ the gap before then (closest approach +0.077).
 
 **Output:** `results/turkey_tax_experiment.png`, `results/financing_experiments.csv`
 
-### 3. `3_turkey_tank_laffer.py` — Laffer curve
+### `legacy/3_turkey_tank_laffer.py` — Laffer curve
 Sweeps the labour tax over 25 points from 5% to 70%.
 
 **Result:** revenue peaks at `tau_w` ≈ 40% (0.787 model units) with unemployment
@@ -327,7 +371,7 @@ equilibrium exists above `tau_w` ≈ 45.93%.
 
 **Output:** `results/turkey_laffer_curve.png`, `results/laffer_curve.csv`
 
-### 4. `4_turkey_tank_vat_experiment.py` — VAT vs. labour tax
+### `legacy/4_turkey_tank_vat_experiment.py` — VAT vs. labour tax
 **Result:** VAT at 21.07% (up 3.07pp from 18%) balances the budget where no
 labour tax rate can.
 
