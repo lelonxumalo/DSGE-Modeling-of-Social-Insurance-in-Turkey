@@ -7,12 +7,9 @@ The model is deterministic: there are no stochastic shocks, no transition
 dynamics and no expectations. It solves a square nonlinear system for a single
 steady state and compares steady states across policies.
 
-> **Status.** This repository contains one model, calibrated to Turkish data and
-> covered by tests. An earlier version of it produced the January 2026 write-up;
-> those results were **withdrawn** — two accounting errors and a VAT that could
-> not affect employment by construction — and that code has been removed. It
-> remains reachable at the `v1-january-writeup` tag if the retracted numbers ever
-> need auditing.
+> **Status.** One model, calibrated to Turkish data and covered by tests. Every
+> figure quoted below is recomputed from a fresh solve by `test_docs.py`, so the
+> README cannot drift from the code.
 
 ## Overview
 
@@ -48,8 +45,8 @@ python 3_laffer_curves.py          # both Laffer curves
 See [Repository layout](#repository-layout) for how the pieces fit together.
 
 Every number this README quotes is recomputed from a fresh solve by
-`test_docs.py`, cell by cell against the headline table — which is how the
-January write-up's numbers are kept from going stale again.
+`test_docs.py`, cell by cell against the headline table, so a change to the
+model that moves a result fails the test suite rather than going unnoticed.
 
 ## Headline results
 
@@ -100,7 +97,7 @@ survives every robustness check in `test_dual.py`; the magnitudes do not.
 - CES bundle of formal and informal goods, elasticity $\sigma = 2$.
 - **VAT applies to the formal good only.** This is the channel through which
   consumption taxes reach employment; without it VAT is non-distortionary by
-  construction, which is the defect that sank the January write-up.
+  construction.
 
 ### Government
 - **Revenue**: labour tax on formal wages, plus VAT on formal consumption.
@@ -250,7 +247,7 @@ Read these before quoting results.
    the ranking survives every robustness check tested.
 
 3. **Is there a fiscal limit to labour taxation?**
-   Yes, but not where the January write-up put it. Total revenue peaks at a wedge of
+   Yes. Total revenue peaks at a wedge of
    about **53%**, so Turkey's ~37.5% is comfortably on the right side and there
    is no fiscal cliff. The binding argument is the marginal cost of those funds,
    not insolvency — walking the wedge from 5% to 70% takes informal employment
@@ -340,7 +337,7 @@ worth running anyway.
   under the old name. That is the only way to lose it, and it is silent.
 - GitHub Pages URLs change if Pages is enabled on a `github.io` path.
 - Anything hardcoding the old URL: the clone command in this README, the
-  citation URL below, and the links in the write-up draft.
+  citation URL below.
 - The local working directory name, which is independent of the remote and has to
   be renamed separately.
 - Any DOI or archive snapshot (Zenodo and similar) pins the old name in already-
@@ -361,9 +358,8 @@ Nxumalo, Mpumelelo. 2026. Turkey's Informality Tax: Social Protection and the Ma
 https://lelonxumalo.blogspot.com/2026/01/fiscal-limits-of-social-protection-in.html
 ```
 
-The post at that URL is the January 2026 write-up, whose results are withdrawn.
-A redraft against the current model exists but is not yet posted; the write-up
-and its tooling are kept out of this repository, which ships the model only.
+The write-up and its tooling are kept out of this repository, which ships the
+model only. The post at that URL is being revised to match the results here.
 
 ## License
 

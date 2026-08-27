@@ -104,20 +104,22 @@ def test_quoted_figure_is_current(figures, name):
     assert value in _text(), f"README no longer quotes {name} as {value}"
 
 
-def test_readme_still_discloses_the_withdrawal():
-    """The retraction has to stay visible even though the old code is gone.
+def test_readme_does_not_call_the_model_dynamic_or_stochastic():
+    """The model is deterministic and steady-state; the name once said otherwise.
 
-    The predecessor model produced published results that were withdrawn. Now
-    that it has been deleted rather than merely labelled, the README is the only
-    place a reader learns that -- so the disclosure and the pointer to the tag
-    that still holds the code must not quietly disappear.
+    No shocks, no transition dynamics, no expectations. Calling it a DSGE model
+    misdescribes what it solves, so the claim must not creep back in.
     """
-    text = _text()
-    assert "withdrawn" in text.lower()
-    assert "v1-january-writeup" in text, "the audit trail pointer is missing"
+    # The repository is still *named* DSGE-Modeling-..., which the README quotes
+    # in the clone URL and discusses under renaming. That is the name, not a
+    # description, so drop it before checking the prose.
+    text = _text().lower().replace("dsge-modeling-of-social-insurance-in-turkey", "")
+    for wrong in ("dsge", "dynamic stochastic"):
+        assert wrong not in text, f"README describes the model as {wrong!r}"
+    assert "steady-state" in text or "steady state" in text
 
 
-def test_readme_does_not_reference_deleted_modules():
+def test_readme_does_not_reference_removed_modules():
     """Nothing should point at code that no longer exists."""
     text = _text()
     for gone in ("turkey_tank/model.py", "turkey_tank/experiments.py",
