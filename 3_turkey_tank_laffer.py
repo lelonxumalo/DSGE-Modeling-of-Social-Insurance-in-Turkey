@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from turkey_tank import Params, write_csv
-from turkey_tank.experiments import sweep
+from turkey_tank.experiments import feasible_ceiling, sweep
 
 
 def main():
@@ -50,9 +50,9 @@ def main():
         print(f"Tax: {pt.value:.2f} | Rev: {r:.4f} | U: {s['u']:.2%} "
               f"| Informal output: {s.informal_output_share:.1%}")
 
-    feasible = [p.value for p in points if p.ok]
-    if feasible and max(feasible) < tax_rates[-1]:
-        print(f"\nEquilibrium ceases to exist above tau_w = {max(feasible):.2%}.")
+    ceiling = feasible_ceiling(base_p, "tau_w", points)
+    if ceiling is not None and ceiling < tax_rates[-1]:
+        print(f"\nEquilibrium ceases to exist above tau_w = {ceiling:.2%}.")
 
     # =========================================================================
     # OUTPUT

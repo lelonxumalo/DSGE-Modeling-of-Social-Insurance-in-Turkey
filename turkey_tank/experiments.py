@@ -23,7 +23,8 @@ from scipy.optimize import brentq
 
 from turkey_tank.model import Params, Solution, SolveError, solve
 
-__all__ = ["SweepPoint", "RateSearch", "sweep", "find_balancing_rate"]
+__all__ = ["SweepPoint", "RateSearch", "sweep", "find_balancing_rate",
+           "feasible_ceiling"]
 
 
 @dataclass
@@ -56,10 +57,11 @@ def sweep(p: Params, name: str, values, strict: bool = True) -> list[SweepPoint]
     return points
 
 
-def _refine_ceiling(gap, last_ok: float, infeasible: list, tol: float = 1e-9) -> float:
+def _bisect_ceiling(attempt, last_ok: float, infeasible: list,
+                    tol: float = 1e-9) -> float:
     """Bisect the boundary where the equilibrium stops existing.
 
-    The grid only brackets it to one grid step; the exact ceiling is an
+    A grid only brackets it to one grid step; the exact ceiling is an
     economically meaningful number (past it the job-creation and bargaining
     conditions share no solution), so it is worth pinning down.
     """
@@ -70,11 +72,25 @@ def _refine_ceiling(gap, last_ok: float, infeasible: list, tol: float = 1e-9) ->
     while bad - ok > tol:
         mid = 0.5 * (ok + bad)
         try:
-            gap(mid)
+            attempt(mid)
             ok = mid
         except SolveError:
             bad = mid
     return ok
+
+
+def feasible_ceiling(p: Params, name: str, points: list) -> float | None:
+    """Highest value of ``name`` at which an equilibrium still exists.
+
+    Takes the :class:`SweepPoint` list from :func:`sweep` and refines the
+    grid-bracketed boundary by bisection.
+    """
+    ok = [pt.value for pt in points if pt.ok]
+    if not ok:
+        return None
+    bad = [pt.value for pt in points if not pt.ok]
+    return _bisect_ceiling(lambda r: solve(p.at(**{name: float(r)}), strict=False),
+                           max(ok), bad)
 
 
 @dataclass
@@ -130,7 +146,7 @@ def find_balancing_rate(p: Params, name: str, target: float,
     if not feasible:
         return out
 
-    out.feasible_max = _refine_ceiling(gap, max(r for r, _ in feasible), infeasible)
+    out.feasible_max = _bisect_ceiling(gap, max(r for r, _ in feasible), infeasible)
     out.best_gap = min((g for _, g in feasible), key=abs)
 
     for (r0, g0), (r1, g1) in zip(feasible, feasible[1:]):
