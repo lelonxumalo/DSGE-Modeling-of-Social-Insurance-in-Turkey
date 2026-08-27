@@ -104,11 +104,25 @@ def test_quoted_figure_is_current(figures, name):
     assert value in _text(), f"README no longer quotes {name} as {value}"
 
 
-def test_readme_does_not_describe_v1_as_current():
-    """The v1 sections must stay labelled, since their results are withdrawn."""
+def test_readme_still_discloses_the_withdrawal():
+    """The retraction has to stay visible even though the old code is gone.
+
+    The predecessor model produced published results that were withdrawn. Now
+    that it has been deleted rather than merely labelled, the README is the only
+    place a reader learns that -- so the disclosure and the pointer to the tag
+    that still holds the code must not quietly disappear.
+    """
     text = _text()
-    assert "## Legacy scripts (v1)" in text
     assert "withdrawn" in text.lower()
+    assert "v1-january-writeup" in text, "the audit trail pointer is missing"
+
+
+def test_readme_does_not_reference_deleted_modules():
+    """Nothing should point at code that no longer exists."""
+    text = _text()
+    for gone in ("turkey_tank/model.py", "turkey_tank/experiments.py",
+                 "test_model.py", "legacy/", "legacy_accounting"):
+        assert gone not in text, f"README still references removed {gone}"
 
 
 if __name__ == "__main__":

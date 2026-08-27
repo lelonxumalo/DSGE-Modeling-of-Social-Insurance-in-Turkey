@@ -12,8 +12,8 @@ Both budget-closure searches scan for sign changes rather than bracketing the
 endpoints, because the fiscal gap is not monotone in the tax rate: the labour
 tax has two balancing rates, one either side of the Laffer peak.
 
-Output: results/v2_financing_comparison.png
-        results/v2_financing_comparison.csv
+Output: results/financing_comparison.png
+        results/financing_comparison.csv
 """
 
 import os
@@ -82,10 +82,10 @@ def main():
 
     # ---------------------------------------------------------------- output
     os.makedirs("results", exist_ok=True)
-    write_csv("results/v2_financing_comparison.csv",
+    write_csv("results/financing_comparison.csv",
               [{"scenario": lab.replace("\n", " "), **s.summary()}
                for lab, s, _ in scenarios])
-    print("\n[SUCCESS] Data saved to results/v2_financing_comparison.csv")
+    print("\n[SUCCESS] Data saved to results/financing_comparison.csv")
 
     labels = [lab for lab, _, _ in scenarios]
     colors = [c for _, _, c in scenarios]
@@ -130,9 +130,9 @@ def main():
         ax.set_ylim(lo, max(values) + span * 0.20)
 
     plt.tight_layout(rect=[0, 0.02, 1, 0.94])
-    plt.savefig("results/v2_financing_comparison.png", dpi=200,
+    plt.savefig("results/financing_comparison.png", dpi=200,
                 facecolor=fig.get_facecolor())
-    print("[SUCCESS] Chart saved to results/v2_financing_comparison.png")
+    print("[SUCCESS] Chart saved to results/financing_comparison.png")
     plt.close(fig)
 
 

@@ -1,16 +1,23 @@
 """
-Dual labour market model for Turkey, v2.
+Dual labour market model for Turkey.
 
-This supersedes ``turkey_tank/model.py`` (kept only to reproduce the original
-write-up).  Three things changed, each because a claim in that write-up could
-not be supported by the v1 code.
+Steady state of a two-agent economy with search and matching in the formal
+sector and an informal sector workers can fall back on.  Deterministic: no
+shocks, no dynamics, no expectations.
 
-1. **Coherent labour force.**  v1 imposed ``l_f + u == 1``, normalising the
-   *formal* labour force, with informal workers outside the identity -- so
-   ``u`` was not a rate comparable to TurkStat's 8-9%, and informal work was
-   moonlighting by the formally employed rather than an alternative to a formal
-   job.  Here ``l_f + l_i + u == 1``: every worker is formally employed,
-   informally employed, or unemployed and searching.
+An earlier model produced the January 2026 write-up, whose results were
+withdrawn; it has been deleted from the tree and survives at the
+``v1-january-writeup`` tag.  Three of its claims could not be supported by its
+own code, and the three sections below are what replaced them -- worth keeping
+in view, because each is a way this kind of model can look like it answers a
+question it structurally cannot.
+
+1. **Coherent labour force.**  The old model imposed ``l_f + u == 1``,
+   normalising the *formal* labour force with informal workers outside the
+   identity -- so ``u`` was not a rate comparable to TurkStat's 8-9%, and
+   informal work was moonlighting by the formally employed rather than an
+   alternative to a formal job.  Here ``l_f + l_i + u == 1``: every worker is
+   formally employed, informally employed, or unemployed and searching.
 
 2. **Informality is a margin.**  Workers not in a formal job choose between
    informal work and searching.  Indifference between the two,
@@ -25,10 +32,10 @@ not be supported by the v1 code.
    informal goods; VAT applies to the formal good only.  Raising VAT therefore
    shifts demand toward informal goods, lifts their relative price ``p`` and
    with it ``w_i``, which raises the outside option in bargaining and destroys
-   formal jobs.  In v1 VAT applied to all consumption and entered no equation
-   that determined employment, so it was non-distortionary by construction and
-   the "VAT preserves jobs" result was an artefact.  Here VAT has a real cost,
-   and the question the write-up asked is actually answerable.
+   formal jobs.  In the old model VAT applied to all consumption and entered no
+   equation that determined employment, so it was non-distortionary by
+   construction and the "VAT preserves jobs" result was an artefact.  Here VAT
+   has a real cost, and the question the write-up asked is answerable.
 
 What taxes can and cannot move
 ------------------------------
@@ -65,15 +72,30 @@ are the output of that routine.
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 import numpy as np
 from scipy.optimize import brentq, least_squares
 
-from turkey_tank.model import SolveError, write_csv  # reuse error type + CSV helper
-
 __all__ = ["Params", "Targets", "Solution", "SolveError", "solve", "calibrate",
            "balancing_rates", "VARIABLES", "residuals", "write_csv"]
+
+
+class SolveError(RuntimeError):
+    """Raised when no equilibrium could be found at the given parameters."""
+
+
+def write_csv(path: "str | Path", rows: list) -> Path:
+    """Write scenario rows to CSV so published tables can be regenerated."""
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+    return out
 
 
 @dataclass(frozen=True)
@@ -96,12 +118,13 @@ class Params:
     # --- population ---
     pop_savers: float = 0.5
 
-    # --- calibrated to targets (defaults are calibrate() output) ---
-    match_eff: float = 0.5310     # A
-    vac_cost: float = 1.3855      # kappa
-    z_i: float = 1.6459           # informal TFP
-    omega: float = 0.8660         # CES weight on the formal good
-    home_prod: float = 0.2240     # flow value of home production
+    # --- solved by calibrate(); these ARE its output, so a bare Params() is the
+    #     calibrated economy and calibrate() starts from its own fixed point ---
+    match_eff: float = 0.543086   # A
+    vac_cost: float = 1.416951    # kappa
+    z_i: float = 1.183756         # informal TFP
+    omega: float = 0.897721       # CES weight on the formal good
+    home_prod: float = 0.204595   # flow value of home production
 
     @property
     def pop_spenders(self) -> float:

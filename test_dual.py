@@ -1,5 +1,5 @@
 """
-Regression tests for the dual labour market model (v2).
+Regression tests for the dual labour market model.
 
 These pin the calibration, the accounting identities, and the three mechanisms
 the write-up's argument rests on. If a change breaks the ranking of financing
@@ -63,7 +63,7 @@ def test_solution_is_an_actual_root():
 # --- the three mechanisms the argument needs --------------------------------
 
 def test_vat_now_reaches_the_labour_market():
-    """The v1 defect: tau_c entered no equation determining employment."""
+    """The withdrawn model's defect: tau_c entered no employment equation."""
     hi = solve(CAL.at(tau_c=0.35), guess=BASE)
     assert hi.informal_share > BASE.informal_share + 0.02
     assert hi["p"] > BASE["p"]          # informal goods get relatively dearer

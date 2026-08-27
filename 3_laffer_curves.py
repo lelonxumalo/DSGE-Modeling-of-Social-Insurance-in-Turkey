@@ -7,8 +7,8 @@ The pairing is the point: the labour tax turns over because the formal tax base
 walks into the informal sector, and the VAT keeps raising revenue but leaks into
 informality the whole way.
 
-Output: results/v2_laffer_curves.png
-        results/v2_laffer_curves.csv
+Output: results/laffer_curves.png
+        results/laffer_curves.csv
 """
 
 import os
@@ -59,10 +59,10 @@ def main():
           f"{vat[0][1].informal_share:.1%} -> {vat[-1][1].informal_share:.1%}")
 
     os.makedirs("results", exist_ok=True)
-    write_csv("results/v2_laffer_curves.csv",
+    write_csv("results/laffer_curves.csv",
               [{"instrument": "tau_w", "rate": v, **s.summary()} for v, s in lab]
               + [{"instrument": "tau_c", "rate": v, **s.summary()} for v, s in vat])
-    print("\n[SUCCESS] Data saved to results/v2_laffer_curves.csv")
+    print("\n[SUCCESS] Data saved to results/laffer_curves.csv")
 
     # --- figure: revenue on top, informality below; never a dual axis --------
     fig, axes = plt.subplots(2, 2, figsize=(13, 7.6), sharex="col", sharey="row")
@@ -114,8 +114,8 @@ def main():
                 (lambda y, _: f"{y:.0f}%") if row == 1 else (lambda y, _: f"{y:.1f}"))
 
     plt.tight_layout(rect=[0, 0.01, 1, 0.94])
-    plt.savefig("results/v2_laffer_curves.png", dpi=200, facecolor=fig.get_facecolor())
-    print("[SUCCESS] Chart saved to results/v2_laffer_curves.png")
+    plt.savefig("results/laffer_curves.png", dpi=200, facecolor=fig.get_facecolor())
+    print("[SUCCESS] Chart saved to results/laffer_curves.png")
     plt.close(fig)
 
 

@@ -5,7 +5,7 @@ Five parameters (matching efficiency, vacancy cost, informal TFP, the CES
 weight on formal goods, home production) are solved for jointly with the model
 so that it reproduces five moments. Everything else is set a priori.
 
-Output: results/v2_calibration.csv
+Output: results/calibration.csv
 """
 
 import os
@@ -73,8 +73,8 @@ def main():
     sol.report("CALIBRATED BASELINE")
 
     os.makedirs("results", exist_ok=True)
-    write_csv("results/v2_calibration.csv", [{"scenario": "baseline", **sol.summary()}])
-    print("\n[SUCCESS] Data saved to results/v2_calibration.csv")
+    write_csv("results/calibration.csv", [{"scenario": "baseline", **sol.summary()}])
+    print("\n[SUCCESS] Data saved to results/calibration.csv")
 
 
 if __name__ == "__main__":

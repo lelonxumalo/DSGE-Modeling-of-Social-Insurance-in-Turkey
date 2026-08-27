@@ -1,17 +1,21 @@
-"""Shared TANK-SM model for the Turkey social-insurance experiments."""
+"""Steady-state model of Turkey's dual labour market with search and matching."""
 
-from turkey_tank.model import (
+from turkey_tank.dual import (
     DEFAULT_GUESS,
     Params,
     Solution,
     SolveError,
+    Targets,
     VARIABLES,
+    balancing_rates,
+    calibrate,
     residuals,
     solve,
     write_csv,
 )
 
 __all__ = [
-    "DEFAULT_GUESS", "Params", "Solution", "SolveError",
-    "VARIABLES", "residuals", "solve", "write_csv",
+    "DEFAULT_GUESS", "Params", "Solution", "SolveError", "Targets",
+    "VARIABLES", "balancing_rates", "calibrate", "residuals", "solve",
+    "write_csv",
 ]
